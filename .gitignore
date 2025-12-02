@@ -1,0 +1,21 @@
+.idea/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# ML outputs
+wandb/
+sft-output/
+outputs/
+generated/
+llama3-finetuned/
+unsloth_compiled_cache/
+checkpoint-*/
+*.safetensors
+*.pt
+*.bin
+*.ckpt
+
+# data (optional: keep if small/needed)
+data/
