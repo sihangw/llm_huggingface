@@ -54,8 +54,8 @@ def n_monomials(n: int, k: int) -> int:
 @dataclass
 class ThetaSamplerConfig:
     # Linear drift A sampling
-    diag_range: tuple = (0.15, 0.6)   # sample negative diagonals in this range
-    offdiag_std_frac: float = 0.25    # off-diag std as a fraction of mean |diag|
+    diag_range: tuple = (0.15, 1.2)   # sample negative diagonals in this range
+    offdiag_std_frac: float = 0.15    # off-diag std as a fraction of mean |diag|
 
     # Constant terms
     f0_std: float = 0.05              # std for constant drift f0
@@ -67,14 +67,15 @@ class ThetaSamplerConfig:
     deg_decay: float = 0.6            # multiply std by (deg_decay)^(k-1) for degree k
 
     # Sparsity (probability of *keeping* a monomial coefficient block)
-    keep_prob_deg2: float = 0.8
-    keep_prob_deg3p: float = 0.5
+    keep_prob_deg2: float = 1.0
+    keep_prob_deg3p: float = 1.0
 
     # State and control sampling
-    x0_box_frac: float = 0.5          # sample x0 uniformly in [-r*x0_box_frac, r*x0_box_frac]^n
-    u_max_range: tuple = (0.8, 1.5)
+    x0_box_frac: float = 0.95          # sample x0 uniformly in [-r*x0_box_frac, r*x0_box_frac]^n
+    x_end_box_frac: float = 0.95       # sample x_end uniformly in [-r*x0_box_frac, r*x0_box_frac]^n
+    # u_max_range: tuple = (0.1, 5.0)
     mu_min_frac: float = 0.6          # μ ∈ [mu_min_frac * u_max, u_max]
-    rho_frac: float = 0.02            # goal radius as fraction of r
+    rho_frac: float = 0.01            # goal radius as fraction of r
 
 # ------------------------------
 # Main Sampler
@@ -138,13 +139,16 @@ class ThetaSampler:
         D = self._sample_D()
         # x0 in inner box
         x0 = rng.uniform(-cfg.r * scfg.x0_box_frac, cfg.r * scfg.x0_box_frac, size=cfg.n)
+        # x_end in inner box
+        x_end_rand = rng.uniform(-cfg.r * scfg.x_end_box_frac, cfg.r * scfg.x_end_box_frac, size=cfg.n)
         # bounds and effort
-        u_max = rng.uniform(*scfg.u_max_range)
-        mu = rng.uniform(scfg.mu_min_frac * u_max, u_max)
+        u_max = cfg.u_max
+        # mu = rng.uniform(scfg.mu_min_frac * u_max, u_max)
+        u_mu = u_max * cfg.mu
         rho = scfg.rho_frac * cfg.r
         # seed for witness control (separate from sampler seed)
         seed = int(rng.integers(0, np.iinfo(np.int32).max))
-        Theta = {"C": C, "D": D, "x0": x0, "u_max": u_max, "mu": mu, "rho": rho, "seed": seed}
+        Theta = {"C": C, "D": D, "x0": x0, "x_end_rand": x_end_rand, "u_max": u_max, "u_mu": u_mu, "rho": rho, "seed": seed}
         return Theta
 
     def sample_instance(self) -> Dict:
@@ -176,27 +180,27 @@ if __name__ == "__main__":
     scfg = ThetaSamplerConfig()
     sampler = ThetaSampler(cfg, scfg, seed=args.seed)
 
-    items = []
-    for _ in range(args.num):
-        if args.instances:
-            items.append(sampler.sample_instance())
-        else:
-            items.append(sampler.sample_theta())
-
-    if not args.out:
-        kind = 'instances' if args.instances else 'theta'
-        args.out = f"{kind}_n{cfg.n}_m{cfg.m}_df{cfg.d_f}_dG{cfg.d_G}_N{cfg.N}_num{args.num}_seed{args.seed}.jsonl"
-
-    with open(args.out, 'w') as f:
-        for it in items:
-            # JSON‑ify numpy
-            def tolist(o):
-                if isinstance(o, np.ndarray):
-                    return o.tolist()
-                if isinstance(o, dict):
-                    return {k: tolist(v) for k, v in o.items()}
-                if isinstance(o, (list, tuple)):
-                    return [tolist(v) for v in o]
-                return o
-            f.write(json.dumps(tolist(it)) + "\n")
-    print(f"Saved {len(items)} {'instances' if args.instances else 'Θ vectors'} to {os.path.abspath(args.out)}")
+    # items = []
+    # for _ in range(args.num):
+    #     if args.instances:
+    #         items.append(sampler.sample_instance())
+    #     else:
+    #         items.append(sampler.sample_theta())
+    #
+    # if not args.out:
+    #     kind = 'instances' if args.instances else 'theta'
+    #     args.out = f"{kind}_n{cfg.n}_m{cfg.m}_df{cfg.d_f}_dG{cfg.d_G}_N{cfg.N}_num{args.num}_seed{args.seed}.jsonl"
+    #
+    # with open(args.out, 'w') as f:
+    #     for it in items:
+    #         # JSON‑ify numpy
+    #         def tolist(o):
+    #             if isinstance(o, np.ndarray):
+    #                 return o.tolist()
+    #             if isinstance(o, dict):
+    #                 return {k: tolist(v) for k, v in o.items()}
+    #             if isinstance(o, (list, tuple)):
+    #                 return [tolist(v) for v in o]
+    #             return o
+    #         f.write(json.dumps(tolist(it)) + "\n")
+    # print(f"Saved {len(items)} {'instances' if args.instances else 'Θ vectors'} to {os.path.abspath(args.out)}")

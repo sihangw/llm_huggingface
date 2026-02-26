@@ -345,7 +345,7 @@ if __name__ == "__main__":
     train_dataset = standardize_sharegpt(train_dataset)
     train_dataset = train_dataset.map(formatting_prompts_func, batched=True)
     test_dataset = standardize_sharegpt(test_dataset)
-    test_dataset = test_dataset.map(formatting_prompts_func, batched=True, )
+    test_dataset = test_dataset.map(formatting_prompts_func, batched=True)
 
     # print(train_dataset[799]["messages"])
 
